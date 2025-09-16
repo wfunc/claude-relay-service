@@ -2165,7 +2165,14 @@ class ClaudeAccountService {
       accountData.sessionWindowStatusUpdatedAt = new Date().toISOString()
 
       // 如果状态是 allowed_warning 且账户设置了自动停止调度
-      if (status === 'allowed_warning' && accountData.autoStopOnWarning === 'true') {
+      const shouldAutoStop =
+        status === 'allowed_warning' && accountData.autoStopOnWarning === 'true'
+      const alreadyAutoStopped =
+        shouldAutoStop &&
+        accountData.schedulable === 'false' &&
+        accountData.fiveHourAutoStopped === 'true'
+
+      if (shouldAutoStop && !alreadyAutoStopped) {
         logger.warn(
           `⚠️ Account ${accountData.name} (${accountId}) approaching 5h limit, auto-stopping scheduling`
         )
@@ -2189,6 +2196,10 @@ class ClaudeAccountService {
         } catch (webhookError) {
           logger.error('Failed to send webhook notification:', webhookError)
         }
+      } else if (alreadyAutoStopped) {
+        logger.debug(
+          `⚠️ Account ${accountData.name} (${accountId}) already auto-stopped for 5h limit, skipping duplicate warning`
+        )
       }
 
       await redis.setClaudeAccount(accountId, accountData)
