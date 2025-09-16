@@ -197,6 +197,7 @@ class Application {
             return res.status(405).send('Method Not Allowed')
           }
 
+          // 始终返回 index.html
           res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
           res.sendFile(path.join(adminSpaPath, 'index.html'))
         })
