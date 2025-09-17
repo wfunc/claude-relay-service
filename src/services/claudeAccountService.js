@@ -1204,6 +1204,8 @@ class ClaudeAccountService {
       }
 
       // 清除限流状态
+      const redisKey = `claude:account:${accountId}`
+      await redis.client.hdel(redisKey, 'rateLimitedAt', 'rateLimitStatus', 'rateLimitEndAt')
       delete accountData.rateLimitedAt
       delete accountData.rateLimitStatus
       delete accountData.rateLimitEndAt // 清除限流结束时间
@@ -1224,6 +1226,7 @@ class ClaudeAccountService {
       }
 
       if (hadAutoStop) {
+        await redis.client.hdel(redisKey, 'rateLimitAutoStopped')
         delete accountData.rateLimitAutoStopped
       }
       await redis.setClaudeAccount(accountId, accountData)
