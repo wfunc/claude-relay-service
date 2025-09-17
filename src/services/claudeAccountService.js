@@ -1208,10 +1208,11 @@ class ClaudeAccountService {
       delete accountData.rateLimitStatus
       delete accountData.rateLimitEndAt // 清除限流结束时间
 
+      const hadAutoStop = accountData.rateLimitAutoStopped === 'true'
+
       // 只恢复因限流而自动停止的账户
-      if (accountData.rateLimitAutoStopped === 'true' && accountData.schedulable === 'false') {
+      if (hadAutoStop && accountData.schedulable === 'false') {
         accountData.schedulable = 'true'
-        delete accountData.rateLimitAutoStopped
         logger.info(`✅ Auto-resuming scheduling for account ${accountId} after rate limit cleared`)
         logger.info(
           `📊 Account ${accountId} state after recovery: schedulable=${accountData.schedulable}`
@@ -1220,6 +1221,10 @@ class ClaudeAccountService {
         logger.info(
           `ℹ️ Account ${accountId} did not need auto-resume: autoStopped=${accountData.rateLimitAutoStopped}, schedulable=${accountData.schedulable}`
         )
+      }
+
+      if (hadAutoStop) {
+        delete accountData.rateLimitAutoStopped
       }
       await redis.setClaudeAccount(accountId, accountData)
 
