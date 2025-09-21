@@ -120,7 +120,9 @@ const authenticateApiKey = async (req, res, next) => {
         // 如果超过限制，立即减少计数
         await redis.decrConcurrency(validation.keyData.id)
         logger.security(
-          `🚦 Concurrency limit exceeded for key: ${validation.keyData.id} (${validation.keyData.name}), current: ${currentConcurrency - 1}, limit: ${concurrencyLimit}`
+          `🚦 Concurrency limit exceeded for key: ${validation.keyData.id} (${
+            validation.keyData.name
+          }), current: ${currentConcurrency - 1}, limit: ${concurrencyLimit}`
         )
         return res.status(429).json({
           error: 'Concurrency limit exceeded',
@@ -275,7 +277,9 @@ const authenticateApiKey = async (req, res, next) => {
           const remainingMinutes = Math.ceil((resetTime - now) / 60000)
 
           logger.security(
-            `💰 Rate limit exceeded (cost) for key: ${validation.keyData.id} (${validation.keyData.name}), cost: $${currentCost.toFixed(2)}/$${rateLimitCost}`
+            `💰 Rate limit exceeded (cost) for key: ${validation.keyData.id} (${
+              validation.keyData.name
+            }), cost: $${currentCost.toFixed(2)}/$${rateLimitCost}`
           )
 
           return res.status(429).json({
@@ -315,7 +319,9 @@ const authenticateApiKey = async (req, res, next) => {
 
       if (dailyCost >= dailyCostLimit) {
         logger.security(
-          `💰 Daily cost limit exceeded for key: ${validation.keyData.id} (${validation.keyData.name}), cost: $${dailyCost.toFixed(2)}/$${dailyCostLimit}`
+          `💰 Daily cost limit exceeded for key: ${validation.keyData.id} (${
+            validation.keyData.name
+          }), cost: $${dailyCost.toFixed(2)}/$${dailyCostLimit}`
         )
 
         return res.status(429).json({
@@ -329,7 +335,36 @@ const authenticateApiKey = async (req, res, next) => {
 
       // 记录当前费用使用情况
       logger.api(
-        `💰 Cost usage for key: ${validation.keyData.id} (${validation.keyData.name}), current: $${dailyCost.toFixed(2)}/$${dailyCostLimit}`
+        `💰 Cost usage for key: ${validation.keyData.id} (${
+          validation.keyData.name
+        }), current: $${dailyCost.toFixed(2)}/$${dailyCostLimit}`
+      )
+    }
+
+    // 检查总费用限制
+    const totalCostLimit = validation.keyData.totalCostLimit || 0
+    if (totalCostLimit > 0) {
+      const totalCost = validation.keyData.totalCost || 0
+
+      if (totalCost >= totalCostLimit) {
+        logger.security(
+          `💰 Total cost limit exceeded for key: ${validation.keyData.id} (${
+            validation.keyData.name
+          }), cost: $${totalCost.toFixed(2)}/$${totalCostLimit}`
+        )
+
+        return res.status(429).json({
+          error: 'Total cost limit exceeded',
+          message: `已达到总费用限制 ($${totalCostLimit})`,
+          currentCost: totalCost,
+          costLimit: totalCostLimit
+        })
+      }
+
+      logger.api(
+        `💰 Total cost usage for key: ${validation.keyData.id} (${
+          validation.keyData.name
+        }), current: $${totalCost.toFixed(2)}/$${totalCostLimit}`
       )
     }
 
@@ -346,7 +381,9 @@ const authenticateApiKey = async (req, res, next) => {
 
         if (weeklyOpusCost >= weeklyOpusCostLimit) {
           logger.security(
-            `💰 Weekly Opus cost limit exceeded for key: ${validation.keyData.id} (${validation.keyData.name}), cost: $${weeklyOpusCost.toFixed(2)}/$${weeklyOpusCostLimit}`
+            `💰 Weekly Opus cost limit exceeded for key: ${validation.keyData.id} (${
+              validation.keyData.name
+            }), cost: $${weeklyOpusCost.toFixed(2)}/$${weeklyOpusCostLimit}`
           )
 
           // 计算下周一的重置时间
@@ -368,7 +405,9 @@ const authenticateApiKey = async (req, res, next) => {
 
         // 记录当前 Opus 费用使用情况
         logger.api(
-          `💰 Opus weekly cost usage for key: ${validation.keyData.id} (${validation.keyData.name}), current: $${weeklyOpusCost.toFixed(2)}/$${weeklyOpusCostLimit}`
+          `💰 Opus weekly cost usage for key: ${validation.keyData.id} (${
+            validation.keyData.name
+          }), current: $${weeklyOpusCost.toFixed(2)}/$${weeklyOpusCostLimit}`
         )
       }
     }
@@ -394,6 +433,8 @@ const authenticateApiKey = async (req, res, next) => {
       allowedClients: validation.keyData.allowedClients,
       dailyCostLimit: validation.keyData.dailyCostLimit,
       dailyCost: validation.keyData.dailyCost,
+      totalCostLimit: validation.keyData.totalCostLimit,
+      totalCost: validation.keyData.totalCost,
       usage: validation.keyData.usage
     }
     req.usage = validation.keyData.usage
