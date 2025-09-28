@@ -490,10 +490,10 @@ class ClaudeAccountService {
             // 添加限流状态信息
             rateLimitStatus: rateLimitInfo
               ? {
-                  isRateLimited: rateLimitInfo.isRateLimited,
-                  rateLimitedAt: rateLimitInfo.rateLimitedAt,
-                  minutesRemaining: rateLimitInfo.minutesRemaining
-                }
+                isRateLimited: rateLimitInfo.isRateLimited,
+                rateLimitedAt: rateLimitInfo.rateLimitedAt,
+                minutesRemaining: rateLimitInfo.minutesRemaining
+              }
               : null,
             // 添加会话窗口信息
             sessionWindow: sessionWindowInfo || {
@@ -529,6 +529,59 @@ class ClaudeAccountService {
     }
   }
 
+  // 📋 获取单个账号的概要信息（用于前端展示会话窗口等状态）
+  async getAccountOverview(accountId) {
+    try {
+      const accountData = await redis.getClaudeAccount(accountId)
+
+      if (!accountData || Object.keys(accountData).length === 0) {
+        return null
+      }
+
+      const [sessionWindowInfo, rateLimitInfo] = await Promise.all([
+        this.getSessionWindowInfo(accountId),
+        this.getAccountRateLimitInfo(accountId)
+      ])
+
+      const sessionWindow = sessionWindowInfo || {
+        hasActiveWindow: false,
+        windowStart: null,
+        windowEnd: null,
+        progress: 0,
+        remainingTime: null,
+        lastRequestTime: accountData.lastRequestTime || null,
+        sessionWindowStatus: accountData.sessionWindowStatus || null
+      }
+
+      const rateLimitStatus = rateLimitInfo
+        ? {
+          isRateLimited: !!rateLimitInfo.isRateLimited,
+          rateLimitedAt: rateLimitInfo.rateLimitedAt || null,
+          minutesRemaining: rateLimitInfo.minutesRemaining || 0,
+          rateLimitEndAt: rateLimitInfo.rateLimitEndAt || null
+        }
+        : {
+          isRateLimited: false,
+          rateLimitedAt: null,
+          minutesRemaining: 0,
+          rateLimitEndAt: null
+        }
+
+      return {
+        id: accountData.id,
+        accountType: accountData.accountType || 'shared',
+        platform: accountData.platform || 'claude',
+        isActive: accountData.isActive === 'true',
+        schedulable: accountData.schedulable !== 'false',
+        sessionWindow,
+        rateLimitStatus
+      }
+    } catch (error) {
+      logger.error(`❌ Failed to build Claude account overview for ${accountId}:`, error)
+      return null
+    }
+  }
+
   // 📝 更新Claude账户
   async updateAccount(accountId, updates) {
     try {
@@ -557,6 +610,7 @@ class ClaudeAccountService {
         'unifiedClientId'
       ]
       const updatedData = { ...accountData }
+      let shouldClearAutoStopFields = false
 
       // 检查是否新增了 refresh token
       const oldRefreshToken = this._decryptSensitiveData(accountData.refreshToken)
@@ -627,6 +681,7 @@ class ClaudeAccountService {
         // 兼容旧的标记（逐步迁移）
         delete updatedData.autoStoppedAt
         delete updatedData.stoppedReason
+        shouldClearAutoStopFields = true
 
         await this._clearFiveHourWarningMetadata(accountId, updatedData)
 
@@ -659,6 +714,18 @@ class ClaudeAccountService {
       }
 
       await redis.setClaudeAccount(accountId, updatedData)
+
+      if (shouldClearAutoStopFields) {
+        const fieldsToRemove = [
+          'rateLimitAutoStopped',
+          'fiveHourAutoStopped',
+          'fiveHourStoppedAt',
+          'tempErrorAutoStopped',
+          'autoStoppedAt',
+          'stoppedReason'
+        ]
+        await this._removeAccountFields(accountId, fieldsToRemove, 'manual_schedule_update')
+      }
 
       logger.success(`📝 Updated Claude account: ${accountId}`)
 
@@ -1320,7 +1387,7 @@ class ClaudeAccountService {
 
         // 优先使用 rateLimitEndAt（基于会话窗口）
         if (accountData.rateLimitEndAt) {
-          ;({ rateLimitEndAt } = accountData)
+          ; ({ rateLimitEndAt } = accountData)
           const endTime = new Date(accountData.rateLimitEndAt)
           minutesRemaining = Math.max(0, Math.ceil((endTime - now) / (1000 * 60)))
         } else {
@@ -1367,6 +1434,9 @@ class ClaudeAccountService {
       const now = new Date()
       const currentTime = now.getTime()
 
+      let shouldClearSessionStatus = false
+      let shouldClearFiveHourFlags = false
+
       // 检查当前是否有活跃的会话窗口
       if (accountData.sessionWindowStart && accountData.sessionWindowEnd) {
         const windowEnd = new Date(accountData.sessionWindowEnd).getTime()
@@ -1398,6 +1468,7 @@ class ClaudeAccountService {
         delete accountData.sessionWindowStatus
         delete accountData.sessionWindowStatusUpdatedAt
         await this._clearFiveHourWarningMetadata(accountId, accountData)
+        shouldClearSessionStatus = true
       }
 
       // 如果账户因为5小时限制被自动停止，现在恢复调度
@@ -1409,6 +1480,7 @@ class ClaudeAccountService {
         delete accountData.fiveHourAutoStopped
         delete accountData.fiveHourStoppedAt
         await this._clearFiveHourWarningMetadata(accountId, accountData)
+        shouldClearFiveHourFlags = true
 
         // 发送Webhook通知
         try {
@@ -1425,6 +1497,17 @@ class ClaudeAccountService {
         } catch (webhookError) {
           logger.error('Failed to send webhook notification:', webhookError)
         }
+      }
+
+      if (shouldClearSessionStatus || shouldClearFiveHourFlags) {
+        const fieldsToRemove = []
+        if (shouldClearFiveHourFlags) {
+          fieldsToRemove.push('fiveHourAutoStopped', 'fiveHourStoppedAt')
+        }
+        if (shouldClearSessionStatus) {
+          fieldsToRemove.push('sessionWindowStatus', 'sessionWindowStatusUpdatedAt')
+        }
+        await this._removeAccountFields(accountId, fieldsToRemove, 'session_window_refresh')
       }
 
       logger.info(
@@ -2482,8 +2565,8 @@ class ClaudeAccountService {
 
                 logger.info(
                   `🔄 Account ${latestAccount.name} (${latestAccount.id}) has entered new session window. ` +
-                    `Old window: ${latestAccount.sessionWindowStart} - ${latestAccount.sessionWindowEnd}, ` +
-                    `New window: ${newWindowStart.toISOString()} - ${newWindowEnd.toISOString()}`
+                  `Old window: ${latestAccount.sessionWindowStart} - ${latestAccount.sessionWindowEnd}, ` +
+                  `New window: ${newWindowStart.toISOString()} - ${newWindowEnd.toISOString()}`
                 )
               }
             } else {
@@ -2529,22 +2612,28 @@ class ClaudeAccountService {
               // 保存更新
               await redis.setClaudeAccount(account.id, updatedAccountData)
 
+              const fieldsToRemove = ['fiveHourAutoStopped', 'fiveHourStoppedAt']
+              if (newWindowStart && newWindowEnd) {
+                fieldsToRemove.push('sessionWindowStatus', 'sessionWindowStatusUpdatedAt')
+              }
+              await this._removeAccountFields(account.id, fieldsToRemove, 'five_hour_recovery_task')
+
               result.recovered++
               result.accounts.push({
                 id: latestAccount.id,
                 name: latestAccount.name,
                 oldWindow: latestAccount.sessionWindowEnd
                   ? {
-                      start: latestAccount.sessionWindowStart,
-                      end: latestAccount.sessionWindowEnd
-                    }
+                    start: latestAccount.sessionWindowStart,
+                    end: latestAccount.sessionWindowEnd
+                  }
                   : null,
                 newWindow:
                   newWindowStart && newWindowEnd
                     ? {
-                        start: newWindowStart.toISOString(),
-                        end: newWindowEnd.toISOString()
-                      }
+                      start: newWindowStart.toISOString(),
+                      end: newWindowEnd.toISOString()
+                    }
                     : null
               })
 
@@ -2582,6 +2671,31 @@ class ClaudeAccountService {
     } catch (error) {
       logger.error('❌ Failed to check and recover 5-hour stopped accounts:', error)
       throw error
+    }
+  }
+
+  async _removeAccountFields(accountId, fields = [], context = 'general_cleanup') {
+    if (!Array.isArray(fields) || fields.length === 0) {
+      return
+    }
+
+    const filteredFields = fields.filter((field) => typeof field === 'string' && field.trim())
+    if (filteredFields.length === 0) {
+      return
+    }
+
+    const accountKey = `claude:account:${accountId}`
+
+    try {
+      await redis.client.hdel(accountKey, ...filteredFields)
+      logger.debug(
+        `🧹 已在 ${context} 阶段为账号 ${accountId} 删除字段 [${filteredFields.join(', ')}]`
+      )
+    } catch (error) {
+      logger.error(
+        `❌ 无法在 ${context} 阶段为账号 ${accountId} 删除字段 [${filteredFields.join(', ')}]:`,
+        error
+      )
     }
   }
 }
