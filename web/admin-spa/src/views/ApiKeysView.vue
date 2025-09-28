@@ -117,27 +117,45 @@
                 </div>
               </div>
 
-              <!-- 搜索框 -->
-              <div class="group relative min-w-[200px]">
-                <div
-                  class="absolute -inset-0.5 rounded-lg bg-gradient-to-r from-cyan-500 to-teal-500 opacity-0 blur transition duration-300 group-hover:opacity-20"
-                ></div>
-                <div class="relative flex items-center">
-                  <input
-                    v-model="searchKeyword"
-                    class="w-full rounded-lg border border-gray-200 bg-white px-3 py-1.5 pl-9 text-sm text-gray-700 placeholder-gray-400 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500 dark:hover:border-gray-500"
-                    :placeholder="isLdapEnabled ? '搜索名称或所有者...' : '搜索名称...'"
-                    type="text"
-                    @input="currentPage = 1"
+              <!-- 搜索模式与搜索框 -->
+              <div class="flex min-w-[240px] flex-col gap-2 sm:flex-row sm:items-center">
+                <div class="sm:w-44">
+                  <CustomDropdown
+                    v-model="searchMode"
+                    icon="fa-filter"
+                    icon-color="text-cyan-500"
+                    :options="searchModeOptions"
+                    placeholder="选择搜索类型"
+                    @change="currentPage = 1"
                   />
-                  <i class="fas fa-search absolute left-3 text-sm text-cyan-500" />
-                  <button
-                    v-if="searchKeyword"
-                    class="absolute right-2 flex h-5 w-5 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-                    @click="clearSearch"
-                  >
-                    <i class="fas fa-times text-xs" />
-                  </button>
+                </div>
+                <div class="group relative flex-1">
+                  <div
+                    class="pointer-events-none absolute -inset-0.5 rounded-lg bg-gradient-to-r from-cyan-500 to-teal-500 opacity-0 blur transition duration-300 group-hover:opacity-20"
+                  ></div>
+                  <div class="relative flex items-center">
+                    <input
+                      v-model="searchKeyword"
+                      class="h-10 w-full rounded-lg border border-gray-200 bg-white px-3 pl-9 text-sm text-gray-700 placeholder-gray-400 shadow-sm transition-all duration-200 hover:border-gray-300 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:placeholder-gray-500 dark:hover:border-gray-500"
+                      :placeholder="
+                        searchMode === 'bindingAccount'
+                          ? '搜索所属账号...'
+                          : isLdapEnabled
+                            ? '搜索名称或所有者...'
+                            : '搜索名称...'
+                      "
+                      type="text"
+                      @input="currentPage = 1"
+                    />
+                    <i class="fas fa-search absolute left-3 text-sm text-cyan-500" />
+                    <button
+                      v-if="searchKeyword"
+                      class="absolute right-2 flex h-5 w-5 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+                      @click="clearSearch"
+                    >
+                      <i class="fas fa-times text-xs" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -390,7 +408,7 @@
                       <i v-else class="fas fa-sort ml-1 text-gray-400" />
                     </th>
                     <th
-                      class="w-[23%] min-w-[170px] px-3 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300"
+                      class="operations-column sticky right-0 w-[23%] min-w-[200px] px-3 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300"
                     >
                       操作
                     </th>
@@ -560,48 +578,29 @@
                           <LimitProgressBar
                             v-if="key.dailyCostLimit > 0"
                             :current="key.dailyCost || 0"
-                            label="每日"
+                            label="每日限制"
                             :limit="key.dailyCostLimit"
                             type="daily"
+                            variant="compact"
                           />
 
-                          <!-- Opus 周费用限制进度条 -->
+                          <!-- 总费用限制进度条（无每日限制时展示） -->
                           <LimitProgressBar
-                            v-if="key.weeklyOpusCostLimit > 0"
-                            :current="key.weeklyOpusCost || 0"
-                            label="Opus"
-                            :limit="key.weeklyOpusCostLimit"
-                            type="opus"
-                          />
-
-                          <!-- 时间窗口限制进度条 -->
-                          <WindowLimitBar
-                            v-if="key.rateLimitWindow > 0"
-                            :cost-limit="key.rateLimitCost || 0"
-                            :current-cost="key.currentWindowCost || 0"
-                            :current-requests="key.currentWindowRequests || 0"
-                            :current-tokens="key.currentWindowTokens || 0"
-                            :rate-limit-window="key.rateLimitWindow"
-                            :remaining-seconds="key.windowRemainingSeconds || 0"
-                            :request-limit="key.rateLimitRequests || 0"
-                            :token-limit="key.tokenLimit || 0"
+                            v-else-if="key.totalCostLimit > 0"
+                            :current="key.usage?.total?.cost || 0"
+                            label="总费用限制"
+                            :limit="key.totalCostLimit"
+                            type="total"
+                            variant="compact"
                           />
 
                           <!-- 如果没有任何限制 -->
                           <div
-                            v-if="
-                              !key.dailyCostLimit &&
-                              !key.weeklyOpusCostLimit &&
-                              !key.rateLimitWindow
-                            "
-                            class="dark:to-gray-750 relative h-7 w-full overflow-hidden rounded-md border border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100 dark:border-gray-700 dark:from-gray-800"
+                            v-else
+                            class="flex items-center justify-center gap-1.5 py-2 text-gray-500 dark:text-gray-400"
                           >
-                            <div class="flex h-full items-center justify-center gap-1.5">
-                              <i class="fas fa-infinity text-xs text-gray-400 dark:text-gray-500" />
-                              <span class="text-xs font-medium text-gray-400 dark:text-gray-500">
-                                无限制
-                              </span>
-                            </div>
+                            <i class="fas fa-infinity text-base" />
+                            <span class="text-xs font-medium">无限制</span>
                           </div>
                         </div>
                       </td>
@@ -704,7 +703,10 @@
                           </span>
                         </div>
                       </td>
-                      <td class="whitespace-nowrap px-3 py-3" style="font-size: 13px">
+                      <td
+                        class="operations-column operations-cell whitespace-nowrap px-3 py-3"
+                        style="font-size: 13px"
+                      >
                         <div class="flex gap-1">
                           <button
                             class="rounded px-2 py-1 text-xs font-medium text-purple-600 transition-colors hover:bg-purple-50 hover:text-purple-900 dark:hover:bg-purple-900/20"
@@ -1201,44 +1203,29 @@
                   <LimitProgressBar
                     v-if="key.dailyCostLimit > 0"
                     :current="key.dailyCost || 0"
-                    label="每日"
+                    label="每日限制"
                     :limit="key.dailyCostLimit"
                     type="daily"
+                    variant="compact"
                   />
 
-                  <!-- Opus 周费用限制 -->
+                  <!-- 总费用限制（无每日限制时展示） -->
                   <LimitProgressBar
-                    v-if="key.weeklyOpusCostLimit > 0"
-                    :current="key.weeklyOpusCost || 0"
-                    label="Opus"
-                    :limit="key.weeklyOpusCostLimit"
-                    type="opus"
-                  />
-
-                  <!-- 时间窗口限制 -->
-                  <WindowLimitBar
-                    v-if="key.rateLimitWindow > 0"
-                    :cost-limit="key.rateLimitCost || 0"
-                    :current-cost="key.currentWindowCost || 0"
-                    :current-requests="key.currentWindowRequests || 0"
-                    :current-tokens="key.currentWindowTokens || 0"
-                    :rate-limit-window="key.rateLimitWindow"
-                    :remaining-seconds="key.windowRemainingSeconds || 0"
-                    :request-limit="key.rateLimitRequests || 0"
-                    :token-limit="key.tokenLimit || 0"
+                    v-else-if="key.totalCostLimit > 0"
+                    :current="key.usage?.total?.cost || 0"
+                    label="总费用限制"
+                    :limit="key.totalCostLimit"
+                    type="total"
+                    variant="compact"
                   />
 
                   <!-- 无限制显示 -->
                   <div
-                    v-if="!key.dailyCostLimit && !key.weeklyOpusCostLimit && !key.rateLimitWindow"
-                    class="dark:to-gray-750 relative h-7 w-full overflow-hidden rounded-md border border-gray-200 bg-gradient-to-r from-gray-50 to-gray-100 dark:border-gray-700 dark:from-gray-800"
+                    v-else
+                    class="flex items-center justify-center gap-1.5 py-2 text-gray-500 dark:text-gray-400"
                   >
-                    <div class="flex h-full items-center justify-center gap-1.5">
-                      <i class="fas fa-infinity text-xs text-gray-400 dark:text-gray-500" />
-                      <span class="text-xs font-medium text-gray-400 dark:text-gray-500">
-                        无限制
-                      </span>
-                    </div>
+                    <i class="fas fa-infinity text-base" />
+                    <span class="text-xs font-medium">无限制</span>
                   </div>
                 </div>
               </div>
@@ -1517,7 +1504,7 @@
                         最后使用
                       </th>
                       <th
-                        class="w-[15%] min-w-[120px] px-3 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300"
+                        class="operations-column sticky right-0 w-[15%] min-w-[160px] px-3 py-4 text-left text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-gray-300"
                       >
                         操作
                       </th>
@@ -1673,7 +1660,7 @@
                         </span>
                         <span v-else class="text-gray-400" style="font-size: 13px">从未使用</span>
                       </td>
-                      <td class="px-3 py-3">
+                      <td class="operations-column operations-cell px-3 py-3">
                         <div class="flex items-center gap-2">
                           <button
                             v-if="key.canRestore"
@@ -1782,7 +1769,6 @@ import BatchEditApiKeyModal from '@/components/apikeys/BatchEditApiKeyModal.vue'
 import ExpiryEditModal from '@/components/apikeys/ExpiryEditModal.vue'
 import UsageDetailModal from '@/components/apikeys/UsageDetailModal.vue'
 import LimitProgressBar from '@/components/apikeys/LimitProgressBar.vue'
-import WindowLimitBar from '@/components/apikeys/WindowLimitBar.vue'
 import CustomDropdown from '@/components/common/CustomDropdown.vue'
 
 // 响应式数据
@@ -1866,6 +1852,11 @@ const availableTags = ref([])
 
 // 搜索相关
 const searchKeyword = ref('')
+const searchMode = ref('apiKey')
+const searchModeOptions = computed(() => [
+  { value: 'apiKey', label: '按Key名称', icon: 'fa-key' },
+  { value: 'bindingAccount', label: '按所属账号', icon: 'fa-id-badge' }
+])
 
 const tagOptions = computed(() => {
   const options = [{ value: '', label: '所有标签', icon: 'fa-asterisk' }]
@@ -1910,6 +1901,65 @@ const renewingApiKey = ref(null)
 const newApiKeyData = ref(null)
 const batchApiKeyData = ref([])
 
+// 提取“所属账号”列直接展示的文本
+const getBindingDisplayStrings = (key) => {
+  const values = new Set()
+
+  const collect = (...items) => {
+    items.forEach((item) => {
+      if (typeof item !== 'string') return
+      const trimmed = item.trim()
+      if (trimmed) {
+        values.add(trimmed)
+      }
+    })
+  }
+
+  const sanitize = (text) => {
+    if (typeof text !== 'string') return ''
+    return text
+      .replace(/^⚠️\s*/, '')
+      .replace(/^🔒\s*/, '')
+      .trim()
+  }
+
+  const appendBindingRow = (label, info) => {
+    const infoSanitized = sanitize(info)
+    collect(label, info, infoSanitized)
+    if (infoSanitized) {
+      collect(`${label} ${infoSanitized}`)
+    }
+  }
+
+  if (key.claudeAccountId || key.claudeConsoleAccountId) {
+    appendBindingRow('Claude', getClaudeBindingInfo(key))
+  }
+
+  if (key.geminiAccountId) {
+    appendBindingRow('Gemini', getGeminiBindingInfo(key))
+  }
+
+  if (key.openaiAccountId) {
+    appendBindingRow('OpenAI', getOpenAIBindingInfo(key))
+  }
+
+  if (key.bedrockAccountId) {
+    appendBindingRow('Bedrock', getBedrockBindingInfo(key))
+  }
+
+  if (
+    !key.claudeAccountId &&
+    !key.claudeConsoleAccountId &&
+    !key.geminiAccountId &&
+    !key.openaiAccountId &&
+    !key.bedrockAccountId
+  ) {
+    collect('共享池')
+  }
+
+  return Array.from(values)
+}
+
 // 计算排序后的API Keys
 const sortedApiKeys = computed(() => {
   // 先进行标签筛选
@@ -1920,20 +1970,22 @@ const sortedApiKeys = computed(() => {
     )
   }
 
-  // 然后进行名称搜索（搜索API Key名称和所有者名称）
+  // 然后进行搜索过滤
   if (searchKeyword.value) {
     const keyword = searchKeyword.value.toLowerCase().trim()
     filteredKeys = filteredKeys.filter((key) => {
-      // 搜索API Key名称
+      if (searchMode.value === 'bindingAccount') {
+        const bindings = getBindingDisplayStrings(key)
+        if (bindings.length === 0) return false
+        return bindings.some((text) => text.toLowerCase().includes(keyword))
+      }
+
       const nameMatch = key.name && key.name.toLowerCase().includes(keyword)
-      // 如果启用了 LDAP，搜索所有者名称
       if (isLdapEnabled.value) {
         const ownerMatch =
           key.ownerDisplayName && key.ownerDisplayName.toLowerCase().includes(keyword)
-        // 如果API Key名称或所有者名称匹配，则包含该条目
         return nameMatch || ownerMatch
       }
-      // 未启用 LDAP 时只搜索名称
       return nameMatch
     })
   }
@@ -3671,6 +3723,12 @@ watch(searchKeyword, () => {
   updateSelectAllState()
 })
 
+// 监听搜索模式变化，重置分页并更新选中状态
+watch(searchMode, () => {
+  currentPage.value = 1
+  updateSelectAllState()
+})
+
 // 监听分页变化，更新全选状态
 watch([currentPage, pageSize], () => {
   updateSelectAllState()
@@ -3710,19 +3768,21 @@ onMounted(async () => {
   border-radius: 12px;
   border: 1px solid rgba(0, 0, 0, 0.05);
   width: 100%;
+  position: relative;
 }
 
 .table-container {
-  overflow-x: hidden;
+  overflow-x: auto;
   overflow-y: hidden;
   margin: 0;
   padding: 0;
   max-width: 100%;
+  position: relative;
 }
 
-/* 防止表格内容溢出 */
+/* 防止表格内容溢出，保证横向滚动 */
 .table-container table {
-  min-width: 100%;
+  min-width: 1200px;
   border-collapse: collapse;
 }
 
@@ -3754,6 +3814,27 @@ onMounted(async () => {
 
 .dark .table-row:hover {
   background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* 固定操作列在右侧，兼容浅色和深色模式 */
+.operations-column {
+  position: sticky;
+  right: 0;
+  background: inherit;
+  background-color: inherit;
+  z-index: 12;
+}
+
+.table-container thead .operations-column {
+  z-index: 30;
+}
+
+.table-container tbody .operations-column {
+  box-shadow: -8px 0 12px -8px rgba(15, 23, 42, 0.16);
+}
+
+.dark .table-container tbody .operations-column {
+  box-shadow: -8px 0 12px -8px rgba(30, 41, 59, 0.45);
 }
 
 .loading-spinner {
