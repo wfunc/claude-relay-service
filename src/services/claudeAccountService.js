@@ -490,10 +490,10 @@ class ClaudeAccountService {
             // 添加限流状态信息
             rateLimitStatus: rateLimitInfo
               ? {
-                isRateLimited: rateLimitInfo.isRateLimited,
-                rateLimitedAt: rateLimitInfo.rateLimitedAt,
-                minutesRemaining: rateLimitInfo.minutesRemaining
-              }
+                  isRateLimited: rateLimitInfo.isRateLimited,
+                  rateLimitedAt: rateLimitInfo.rateLimitedAt,
+                  minutesRemaining: rateLimitInfo.minutesRemaining
+                }
               : null,
             // 添加会话窗口信息
             sessionWindow: sessionWindowInfo || {
@@ -555,17 +555,17 @@ class ClaudeAccountService {
 
       const rateLimitStatus = rateLimitInfo
         ? {
-          isRateLimited: !!rateLimitInfo.isRateLimited,
-          rateLimitedAt: rateLimitInfo.rateLimitedAt || null,
-          minutesRemaining: rateLimitInfo.minutesRemaining || 0,
-          rateLimitEndAt: rateLimitInfo.rateLimitEndAt || null
-        }
+            isRateLimited: !!rateLimitInfo.isRateLimited,
+            rateLimitedAt: rateLimitInfo.rateLimitedAt || null,
+            minutesRemaining: rateLimitInfo.minutesRemaining || 0,
+            rateLimitEndAt: rateLimitInfo.rateLimitEndAt || null
+          }
         : {
-          isRateLimited: false,
-          rateLimitedAt: null,
-          minutesRemaining: 0,
-          rateLimitEndAt: null
-        }
+            isRateLimited: false,
+            rateLimitedAt: null,
+            minutesRemaining: 0,
+            rateLimitEndAt: null
+          }
 
       return {
         id: accountData.id,
@@ -1387,7 +1387,7 @@ class ClaudeAccountService {
 
         // 优先使用 rateLimitEndAt（基于会话窗口）
         if (accountData.rateLimitEndAt) {
-          ; ({ rateLimitEndAt } = accountData)
+          ;({ rateLimitEndAt } = accountData)
           const endTime = new Date(accountData.rateLimitEndAt)
           minutesRemaining = Math.max(0, Math.ceil((endTime - now) / (1000 * 60)))
         } else {
@@ -2565,8 +2565,8 @@ class ClaudeAccountService {
 
                 logger.info(
                   `🔄 Account ${latestAccount.name} (${latestAccount.id}) has entered new session window. ` +
-                  `Old window: ${latestAccount.sessionWindowStart} - ${latestAccount.sessionWindowEnd}, ` +
-                  `New window: ${newWindowStart.toISOString()} - ${newWindowEnd.toISOString()}`
+                    `Old window: ${latestAccount.sessionWindowStart} - ${latestAccount.sessionWindowEnd}, ` +
+                    `New window: ${newWindowStart.toISOString()} - ${newWindowEnd.toISOString()}`
                 )
               }
             } else {
@@ -2624,16 +2624,16 @@ class ClaudeAccountService {
                 name: latestAccount.name,
                 oldWindow: latestAccount.sessionWindowEnd
                   ? {
-                    start: latestAccount.sessionWindowStart,
-                    end: latestAccount.sessionWindowEnd
-                  }
+                      start: latestAccount.sessionWindowStart,
+                      end: latestAccount.sessionWindowEnd
+                    }
                   : null,
                 newWindow:
                   newWindowStart && newWindowEnd
                     ? {
-                      start: newWindowStart.toISOString(),
-                      end: newWindowEnd.toISOString()
-                    }
+                        start: newWindowStart.toISOString(),
+                        end: newWindowEnd.toISOString()
+                      }
                     : null
               })
 
