@@ -499,10 +499,10 @@ class ClaudeAccountService {
             // 添加限流状态信息
             rateLimitStatus: rateLimitInfo
               ? {
-                isRateLimited: rateLimitInfo.isRateLimited,
-                rateLimitedAt: rateLimitInfo.rateLimitedAt,
-                minutesRemaining: rateLimitInfo.minutesRemaining
-              }
+                  isRateLimited: rateLimitInfo.isRateLimited,
+                  rateLimitedAt: rateLimitInfo.rateLimitedAt,
+                  minutesRemaining: rateLimitInfo.minutesRemaining
+                }
               : null,
             // 添加会话窗口信息
             sessionWindow: sessionWindowInfo || {
@@ -566,17 +566,17 @@ class ClaudeAccountService {
 
       const rateLimitStatus = rateLimitInfo
         ? {
-          isRateLimited: !!rateLimitInfo.isRateLimited,
-          rateLimitedAt: rateLimitInfo.rateLimitedAt || null,
-          minutesRemaining: rateLimitInfo.minutesRemaining || 0,
-          rateLimitEndAt: rateLimitInfo.rateLimitEndAt || null
-        }
+            isRateLimited: !!rateLimitInfo.isRateLimited,
+            rateLimitedAt: rateLimitInfo.rateLimitedAt || null,
+            minutesRemaining: rateLimitInfo.minutesRemaining || 0,
+            rateLimitEndAt: rateLimitInfo.rateLimitEndAt || null
+          }
         : {
-          isRateLimited: false,
-          rateLimitedAt: null,
-          minutesRemaining: 0,
-          rateLimitEndAt: null
-        }
+            isRateLimited: false,
+            rateLimitedAt: null,
+            minutesRemaining: 0,
+            rateLimitEndAt: null
+          }
 
       return {
         id: accountData.id,
@@ -1408,7 +1408,7 @@ class ClaudeAccountService {
 
         // 优先使用 rateLimitEndAt（基于会话窗口）
         if (accountData.rateLimitEndAt) {
-          ; ({ rateLimitEndAt } = accountData)
+          ;({ rateLimitEndAt } = accountData)
           const endTime = new Date(accountData.rateLimitEndAt)
           minutesRemaining = Math.max(0, Math.ceil((endTime - now) / (1000 * 60)))
         } else {
@@ -2505,35 +2505,22 @@ class ClaudeAccountService {
       accountData.sessionWindowStatusUpdatedAt = nowIso
 
       // 如果状态是 allowed_warning 且账户设置了自动停止调度
-      const shouldAutoStop =
-        status === 'allowed_warning' && accountData.autoStopOnWarning === 'true'
-      const alreadyAutoStopped =
-        shouldAutoStop &&
-        accountData.schedulable === 'false' &&
-        accountData.fiveHourAutoStopped === 'true'
-      logger.warn(
-        `⚠️ Account ${accountData.name} (${accountId}) approaching 5h limit, auto-stopping scheduling`
-      )
-      accountData.schedulable = 'false'
-      // 使用独立的5小时限制自动停止标记
-      accountData.fiveHourAutoStopped = 'true'
-      accountData.fiveHourStoppedAt = new Date().toISOString()
-      // 设置停止原因，供前端显示
-      accountData.stoppedReason = '5小时使用量接近限制，已自动停止调度'
-
-      if (shouldAutoStop) {
-        const windowIdentifier =
-          accountData.sessionWindowEnd || accountData.sessionWindowStart || 'unknown'
-
-        let warningCount = 0
-        if (accountData.fiveHourWarningWindow === windowIdentifier) {
-          const parsedCount = parseInt(accountData.fiveHourWarningCount || '0', 10)
-          warningCount = Number.isNaN(parsedCount) ? 0 : parsedCount
-        }
-
-        const maxWarningsPerWindow = this.maxFiveHourWarningsPerWindow
+      if (status === 'allowed_warning' && accountData.autoStopOnWarning === 'true') {
+        const alreadyAutoStopped =
+          accountData.schedulable === 'false' && accountData.fiveHourAutoStopped === 'true'
 
         if (!alreadyAutoStopped) {
+          const windowIdentifier =
+            accountData.sessionWindowEnd || accountData.sessionWindowStart || 'unknown'
+
+          let warningCount = 0
+          if (accountData.fiveHourWarningWindow === windowIdentifier) {
+            const parsedCount = parseInt(accountData.fiveHourWarningCount || '0', 10)
+            warningCount = Number.isNaN(parsedCount) ? 0 : parsedCount
+          }
+
+          const maxWarningsPerWindow = this.maxFiveHourWarningsPerWindow
+
           logger.warn(
             `⚠️ Account ${accountData.name} (${accountId}) approaching 5h limit, auto-stopping scheduling`
           )
@@ -2541,6 +2528,8 @@ class ClaudeAccountService {
           // 使用独立的5小时限制自动停止标记
           accountData.fiveHourAutoStopped = 'true'
           accountData.fiveHourStoppedAt = nowIso
+          // 设置停止原因，供前端显示
+          accountData.stoppedReason = '5小时使用量接近限制，已自动停止调度'
 
           const canSendWarning = warningCount < maxWarningsPerWindow
           let updatedWarningCount = warningCount
@@ -2762,8 +2751,8 @@ class ClaudeAccountService {
 
                 logger.info(
                   `🔄 Account ${latestAccount.name} (${latestAccount.id}) has entered new session window. ` +
-                  `Old window: ${latestAccount.sessionWindowStart} - ${latestAccount.sessionWindowEnd}, ` +
-                  `New window: ${newWindowStart.toISOString()} - ${newWindowEnd.toISOString()}`
+                    `Old window: ${latestAccount.sessionWindowStart} - ${latestAccount.sessionWindowEnd}, ` +
+                    `New window: ${newWindowStart.toISOString()} - ${newWindowEnd.toISOString()}`
                 )
               }
             } else {
@@ -2822,16 +2811,16 @@ class ClaudeAccountService {
                 name: latestAccount.name,
                 oldWindow: latestAccount.sessionWindowEnd
                   ? {
-                    start: latestAccount.sessionWindowStart,
-                    end: latestAccount.sessionWindowEnd
-                  }
+                      start: latestAccount.sessionWindowStart,
+                      end: latestAccount.sessionWindowEnd
+                    }
                   : null,
                 newWindow:
                   newWindowStart && newWindowEnd
                     ? {
-                      start: newWindowStart.toISOString(),
-                      end: newWindowEnd.toISOString()
-                    }
+                        start: newWindowStart.toISOString(),
+                        end: newWindowEnd.toISOString()
+                      }
                     : null
               })
 
