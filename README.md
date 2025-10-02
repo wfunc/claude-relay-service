@@ -17,14 +17,14 @@
 
 ---
 
-## 💎 Claude 拼车 - Claude Code 合租服务推荐
+## 💎 Claude/Codex 拼车服务推荐
 
 <div align="center">
 
-| 平台 | 类型 | 介绍 |
-|:---:|:---:|:---|
-| **[pincc.ai](https://pincc.ai/)** | 🏆 **官方运营** | 项目官方直营的Claude拼车服务<br>提供200刀 Claude Code Max 套餐共享服务 |
-| **[ctok.ai](https://ctok.ai/)** | 🤝 合作伙伴 | 社区认可的Claude拼车服务 |
+| 平台 | 类型 | 服务 | 介绍 |
+|:---|:---|:---|:---|
+| **[pincc.ai](https://pincc.ai/)** | 🏆 **官方运营** | <small>✅ Claude Code<br>✅ Codex CLI</small> | 项目直营，提供稳定的 Claude Code / Codex CLI 拼车服务 |
+| **[ctok.ai](https://ctok.ai/)** | 🤝 合作伙伴 | <small>✅ Claude Code<br>✅ Codex CLI</small> | 社区认证，提供 Claude Code / Codex CLI 拼车 |
 
 
 </div>
@@ -394,6 +394,18 @@ export ANTHROPIC_BASE_URL="http://127.0.0.1:3000/api/" # 根据实际填写你�
 export ANTHROPIC_AUTH_TOKEN="后台创建的API密钥"
 ```
 
+**VSCode Claude 插件配置：**
+
+如果使用 VSCode 的 Claude 插件，需要在 `~/.claude/config.json` 文件中配置：
+
+```json
+{
+    "primaryApiKey": "crs"
+}
+```
+
+如果该文件不存在，请手动创建。Windows 用户路径为 `C:\Users\你的用户名\.claude\config.json`。
+
 **Gemini CLI 设置环境变量：**
 
 ```bash
@@ -416,7 +428,7 @@ gemini  # 或其他 Gemini CLI 命令
 
 **Codex 配置：**
 
-在 `~/.codex/config.toml` 文件中添加以下配置：
+在 `~/.codex/config.toml` 文件**开头**添加以下配置：
 
 ```toml
 model_provider = "crs"
@@ -446,6 +458,8 @@ env_key = "CRS_OAI_KEY"
 ```bash
 export CRS_OAI_KEY="后台创建的API密钥"
 ```
+
+> ⚠️ 在通过 Nginx 反向代理 CRS 服务并使用 Codex CLI 时，需要在 http 块中添加 underscores_in_headers on;。因为 Nginx 默认会移除带下划线的请求头（如 session_id），一旦该头被丢弃，多账号环境下的粘性会话功能将失效。
 
 ### 5. 第三方工具API接入
 
@@ -603,23 +617,6 @@ npm run service:status
    - 客户端验证失败时会返回403错误并记录详细信息
    - 通过日志可以查看实际的User-Agent格式，方便配置自定义客户端
 
-### 自定义客户端配置
-
-如需添加自定义客户端，可以修改 `config/config.js` 文件：
-
-```javascript
-clientRestrictions: {
-  predefinedClients: [
-    // ... 现有客户端配置
-    {
-      id: 'my_custom_client',
-      name: 'My Custom Client',
-      description: '我的自定义客户端',
-      userAgentPattern: /^MyClient\/[\d\.]+/i
-    }
-  ]
-}
-```
 
 ### 日志示例
 
